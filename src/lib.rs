@@ -10,6 +10,14 @@ pub struct Message<Payload> {
     pub body: Body<Payload>,
 }
 
+impl<Payload: Serialize> Message<Payload> {
+    pub fn send(&self, output: &mut StdoutLock) -> anyhow::Result<()> {
+        serde_json::to_writer(&mut *output, self).context("serialize response to echo.")?;
+        output.write_all(b"\n").context("Write trailing line.")?;
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Body<Payload> {
     #[serde(rename = "msg_id")]

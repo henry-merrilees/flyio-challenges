@@ -39,14 +39,16 @@ impl Node<(), Payload> for BroadcastNode {
     }
 
     fn step(&mut self, input: Message<Payload>, output: &mut StdoutLock) -> anyhow::Result<()> {
-        let response_payload = match input.body.payload {
+        // I'm sorry :/
+        if let Some(payload) = match input.body.payload {
             Payload::Broadcast { message } => {
                 self.messages.insert(message);
                 Some(Payload::BroadcastOk)
             }
-            Payload::Read => Some(Payload::ReadOk {
-                messages: self.messages.clone(),
-            }),
+            Payload::Read => {
+                let messages = self.messages.clone();
+                Some(Payload::ReadOk { messages })
+            }
             Payload::Topology { topology } => {
                 for (node, new_neighbors) in topology.into_iter() {
                     if let Some(existing_neighbors) = self.topology.get_mut(&node) {
@@ -57,16 +59,13 @@ impl Node<(), Payload> for BroadcastNode {
                 }
                 Some(Payload::TopologyOk)
             }
-            Payload::BroadcastOk => None,
             Payload::ReadOk { messages } => {
                 self.messages.extend(messages);
                 None
             }
-            Payload::TopologyOk => None,
-        };
-
-        if let Some(payload) = response_payload {
-            let reply = Message {
+            Payload::BroadcastOk | Payload::TopologyOk => None,
+        } {
+            Message {
                 src: input.dest, // Aruably this should be self.node_id regardless of whether we validate
                 dest: input.src,
                 body: Body {
@@ -74,10 +73,8 @@ impl Node<(), Payload> for BroadcastNode {
                     in_reply_to: input.body.id,
                     payload,
                 },
-            };
-
-            serde_json::to_writer(&mut *output, &reply).context("serialize response to echo.")?;
-            output.write_all(b"\n").context("Write trailing line.")?;
+            }
+            .send(output)?;
             self.local_id += 1;
         }
         Ok(())
