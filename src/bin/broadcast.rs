@@ -1,8 +1,7 @@
-use anyhow::Context;
 use flyio_challenges::*;
 use std::{
     collections::{HashMap, HashSet},
-    io::{StdoutLock, Write},
+    io::StdoutLock,
 };
 
 use serde::{Deserialize, Serialize};
@@ -21,6 +20,7 @@ enum Payload {
     TopologyOk,
 }
 
+#[allow(dead_code)]
 struct BroadcastNode {
     node_id: String,
     local_id: usize,
@@ -37,14 +37,13 @@ impl Node<(), Payload> for BroadcastNode {
             topology: Topology::new(),
         })
     }
-
     fn step(&mut self, input: Message<Payload>, output: &mut StdoutLock) -> anyhow::Result<()> {
-        // I'm sorry :/
-        if let Some(payload) = match input.body.payload {
+        let reply_payload = match input.body.payload {
             Payload::Broadcast { message } => {
                 self.messages.insert(message);
                 Some(Payload::BroadcastOk)
             }
+
             Payload::Read => {
                 let messages = self.messages.clone();
                 Some(Payload::ReadOk { messages })
@@ -64,7 +63,9 @@ impl Node<(), Payload> for BroadcastNode {
                 None
             }
             Payload::BroadcastOk | Payload::TopologyOk => None,
-        } {
+        };
+
+        if let Some(payload) = reply_payload {
             Message {
                 src: input.dest, // Aruably this should be self.node_id regardless of whether we validate
                 dest: input.src,

@@ -3,6 +3,14 @@ use std::io::{StdoutLock, Write};
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
+pub trait Node<S, Payload> {
+    fn from_init(state: S, init: Init) -> anyhow::Result<Self>
+    where
+        Self: Sized;
+
+    fn step(&mut self, input: Message<Payload>, output: &mut StdoutLock) -> anyhow::Result<()>;
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Message<Payload> {
     pub src: String,
@@ -39,14 +47,6 @@ enum InitPayload {
 pub struct Init {
     pub node_id: String,
     pub node_ids: Vec<String>,
-}
-
-pub trait Node<S, Payload> {
-    fn from_init(state: S, init: Init) -> anyhow::Result<Self>
-    where
-        Self: Sized;
-
-    fn step(&mut self, input: Message<Payload>, output: &mut StdoutLock) -> anyhow::Result<()>;
 }
 
 pub fn main_loop<S, N, P>(init_state: S) -> anyhow::Result<()>
