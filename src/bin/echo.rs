@@ -16,15 +16,22 @@ struct EchoNode {
     id: usize,
 }
 
-impl Node<(), Payload> for EchoNode {
-    fn from_init(_state: (), _init: Init) -> anyhow::Result<Self>
+impl Node<(), Payload, ()> for EchoNode {
+    fn from_init(
+        _state: (),
+        _init: Init,
+        _tx: std::sync::mpsc::Sender<Event<Payload>>,
+    ) -> anyhow::Result<Self>
     where
         Self: Sized,
     {
         Ok(EchoNode { id: 1 })
     }
 
-    fn step(&mut self, input: Message<Payload>, output: &mut StdoutLock) -> anyhow::Result<()> {
+    fn step(&mut self, input: Event<Payload>, output: &mut StdoutLock) -> anyhow::Result<()> {
+        let Event::Message(input) = input else {
+            panic!("invalid event injection");
+        };
         match input.body.payload {
             Payload::Echo { echo } => {
                 let reply = Message {
@@ -48,5 +55,5 @@ impl Node<(), Payload> for EchoNode {
 }
 
 fn main() -> anyhow::Result<()> {
-    main_loop::<_, EchoNode, _>(())
+    main_loop::<_, EchoNode, _, _>(())
 }
